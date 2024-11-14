@@ -6,13 +6,14 @@ import torch
 import spur
 
 # returns the rank to axis. If pp_deg=dp_deg=mp_deg=2, rank 3 gives (0,1,1).
-# This is deepspeed method
+# This is deepspeed method 转变为三元组
+# 通过对rank进程进行取余和整除操作，将rank分配到不同的并行维度上。
 def rank2axis(rank, mp_deg, dp_deg, pp_deg):
-    pp = rank // (mp_deg * dp_deg)
-    remainder = rank % (mp_deg * dp_deg)
+    pp = rank // (mp_deg * dp_deg) # pp并行的轴，可以理解为分到几个计算节点上
+    remainder = rank % (mp_deg * dp_deg) # 这个余数将用于后续的数据并行和模型并行的计算
 
-    dp = remainder // (mp_deg)
-    remainder = remainder % mp_deg
+    dp = remainder // (mp_deg) # dp并行的轴
+    remainder = remainder % mp_deg # 除以模型并行度后的余数是模型并行的轴
 
     mp = remainder
 
@@ -116,8 +117,12 @@ def simulate(rank_maps, partitions, gbs, micro_bs_list, model_config, oth_list, 
 
         json_path = os.path.join(home_path, 'AMP/DeepSpeed/DeepSpeedExamples/Megatron-LM-v1.1.5-3D_parallelism/examples/ds_config.json')
 
+        # 修改：添加gpt3
         if model_type == "gpt2":
             script_path = os.path.join(home_path,"AMP/DeepSpeed/DeepSpeedExamples/Megatron-LM-v1.1.5-3D_parallelism/examples/ds_pretrain_gpt2_pipe.sh")
+            conf = f" {mp} {pp} {config_n} {config_h} {micro_bs} {gas} {exp_name}"
+        elif model_type == "gpt3":
+            script_path = os.path.join(home_path,"AMP/DeepSpeed/DeepSpeedExamples/Megatron-LM-v1.1.5-3D_parallelism/examples/ds_pretrain_gpt3_pipe.sh")
             conf = f" {mp} {pp} {config_n} {config_h} {micro_bs} {gas} {exp_name}"
         else:
             assert model_type == "transgan"

@@ -28,7 +28,9 @@ class AMP(nn.Module):
         #self.estimate = estimate
         self.model_type = model_config["type"]
         self.placement = placement
-        assert self.model_type == "gpt2" 
+        # assert self.model_type == "gpt2" 
+        # 修改：增加gpt3
+        assert self.model_type in ["gpt2", "gpt3"]
         self.init_param()
         
     def init_param(self):
@@ -176,6 +178,7 @@ def get_cost_e(cluster_info, model_config, parallel_config, amp_config, placemen
             if placement:
                 cur_layer = bs * profile_cost["1"][layer_id] / mp.item()
             else:
+                # print("using profile cost mp:",int(mp.item()))
                 cur_layer = bs * profile_cost[str(int(mp.item()))][layer_id]
 
             if layer_type == "embed2h":

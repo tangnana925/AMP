@@ -232,10 +232,13 @@ class Timers:
         # currently when using add_scalars,
         # torch.utils.add_scalars makes each timer its own run, which
         # polutes the runs list, so we just add each as a scalar
-        assert False
+
+        ######
+        # assert False
         assert normalizer > 0.0
         for name in names:
-            value = self.timers[name].elapsed(reset=reset) / normalizer
+            value, _ = self.timers[name].elapsed(reset=reset) # 修改 
+            value = value/ normalizer
             writer.add_scalar(name + '_time', value, iteration)
 
     def log(self, names, normalizer=1.0, reset=True):

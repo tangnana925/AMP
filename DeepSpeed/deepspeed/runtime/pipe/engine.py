@@ -218,7 +218,7 @@ class PipelineEngine(DeepSpeedEngine):
         # needed to decide if it actually breaks everything.
         # (see https://github.com/EleutherAI/gpt-neox/issues/62#issuecomment-761471944)
         self.timers("backward_tied_allreduce_microstep").start()
-        if self.zero_optimization_partition_gradients():
+        if self.zero_optimization_partition_gradients(): # 为false，因为zero_optimization_stage为0
             self.optimizer.overlapping_partition_gradients_reduce_epilogue()
         self.module.allreduce_tied_weight_gradients()
         self.timers("backward_tied_allreduce_microstep").stop()
@@ -228,7 +228,7 @@ class PipelineEngine(DeepSpeedEngine):
         self._force_grad_boundary = True
         if self.is_data_parallel:
             self.buffered_allreduce_fallback(
-                elements_per_buffer=MEMORY_OPT_ALLREDUCE_SIZE)
+                elements_per_buffer=MEMORY_OPT_ALLREDUCE_SIZE) # here
         self._force_grad_boundary = False
         self.timers("backward_allreduce").stop()
 
@@ -289,8 +289,8 @@ class PipelineEngine(DeepSpeedEngine):
         sched = schedule.TrainSchedule(micro_batches=self.micro_batches,
                                        stages=self.num_stages,
                                        stage_id=self.stage_id)
-        self._exec_schedule(sched)
-        self.agg_train_loss = self._aggregate_total_loss()
+        self._exec_schedule(sched) # ###################结束
+        self.agg_train_loss = self._aggregate_total_loss() # 聚合损失
         self.timers('train_batch').stop()
 
         if self.global_steps % self.steps_per_print() == 0:
@@ -397,6 +397,7 @@ class PipelineEngine(DeepSpeedEngine):
         """True if this process is in the last stage in the pipeline."""
         return self.stage_id == self.num_stages - 1
 
+    # 聚合并广播总loss,以确保所有进程都能得到一致的损失值。
     def _aggregate_total_loss(self):
         # Scale loss, average among DP ranks, and bcast loss to the rest of my DP group
         if self.is_last_stage():
@@ -495,6 +496,7 @@ class PipelineEngine(DeepSpeedEngine):
 
         return batch
 
+    # 前向传播
     def _exec_forward_pass(self, buffer_id):
         #time_s0 = time.time()
         #time_s = time.time()
@@ -508,11 +510,11 @@ class PipelineEngine(DeepSpeedEngine):
             inputs = self.pipe_buffers['inputs'][buffer_id].clone()
 
         # collect the partitioned input from the previous stage
-        if self.is_pipe_partitioned and not self.is_first_stage():
+        if self.is_pipe_partitioned and not self.is_first_stage(): # 分区且不是第一个阶段
             part_input = PartitionedTensor.from_meta(
                 meta=inputs[0],
                 local_part=inputs[1],
-                group=self.grid.get_slice_parallel_group())
+                group=self.grid.get_slice_parallel_group()) # 获得分区的数据
 
             inputs = tuple([part_input.full(), inputs[2]])
             inputs[0].requires_grad = True
@@ -523,18 +525,18 @@ class PipelineEngine(DeepSpeedEngine):
 
         # Zero out the gradients each time we use the tensor because only the data in
         # tensor changes across batches
-        self._zero_grads(inputs)
+        self._zero_grads(inputs) # 梯度清0
         
         # print("going to")
         #print(f"before super: {time.time() - time_s}")
         time_s = time.time()
-        outputs = super().forward(inputs)
+        outputs = super().forward(inputs) # 获得前向输出
         #print(f"in forward {time.time() - time_s}")
 
         # print("finish")
         time_s = time.time()
         # Partition the outputs if we are not the last stage
-        if self.is_pipe_partitioned and not self.is_last_stage():
+        if self.is_pipe_partitioned and not self.is_last_stage(): # 分区且是不是最后一个阶段
             part = PartitionedTensor(tensor=outputs[0],
                                      group=self.grid.get_slice_parallel_group())
             # Clear the large output data, but save the computation graph
@@ -542,18 +544,18 @@ class PipelineEngine(DeepSpeedEngine):
             self.pipe_buffers['output_tensors'][buffer_id] = outputs[0]
             # Inject the partitioned tensor into the output before sending
             #print(outputs)#, outputs.shape)
-            outputs = tuple([part.to_meta(), part.data(), outputs[1]])
+            outputs = tuple([part.to_meta(), part.data(), outputs[1]]) # 输出结果分区
             part = None
 
         self.pipe_buffers['outputs'][buffer_id] = outputs
         #print(f"after super: {time.time() - time_s}")
 
         # Optionally compute loss on the last device
-        if self.is_last_stage():
+        if self.is_last_stage(): # 最后一个阶段
             time_s = time.time()
             if self.loss_model is not None:
                 labels = self.pipe_buffers['labels'][buffer_id]
-                self.loss = self.loss_model(outputs, labels)
+                self.loss = self.loss_model(outputs, labels) # 计算损失
             else:
                 # Some models just return loss from forward()
                 self.loss = outputs
@@ -562,7 +564,7 @@ class PipelineEngine(DeepSpeedEngine):
             if isinstance(self.loss, torch.Tensor):
                 if self.total_loss is None:
                     self.total_loss = torch.zeros_like(self.loss)
-                self.total_loss += self.loss.detach()
+                self.total_loss += self.loss.detach() # 累加损失
             else:
                 if self.total_loss is None:
                     self.total_loss = [torch.zeros_like(l) for l in self.loss]
@@ -579,7 +581,7 @@ class PipelineEngine(DeepSpeedEngine):
 
         # The last stage just runs backward on the loss using DeepSpeed's typical
         # mechanisms.
-        if self.is_last_stage():
+        if self.is_last_stage(): # 最后一个阶段
             super().backward(self.loss)
             self.mem_status('AFTER BWD')
             return
@@ -643,13 +645,14 @@ class PipelineEngine(DeepSpeedEngine):
 
         self.mem_status('AFTER BWD')
 
+    # 加载微批次数据
     def _exec_load_micro_batch(self, buffer_id):
         if self.wall_clock_breakdown():
             self.timers('batch_input').start()
 
         batch = self._next_batch()
 
-        if self.is_first_stage():
+        if self.is_first_stage(): # 将数据加载到GPU
             loaded = None
             if torch.is_tensor(batch[0]):
                 #print(batch)
@@ -669,7 +672,7 @@ class PipelineEngine(DeepSpeedEngine):
 
             self.pipe_buffers['inputs'][buffer_id] = loaded
 
-        if self.is_last_stage():
+        if self.is_last_stage(): # 将标签加载到GPU
             loaded = batch[1]
             if torch.is_tensor(batch[1]):
                 loaded = batch[1].to(self.device)
@@ -1171,10 +1174,10 @@ class PipelineEngine(DeepSpeedEngine):
     # kwargs provided to the PipeInstruction from the scheduler.
     _INSTRUCTION_MAP = {
         schedule.OptimizerStep: _exec_optimizer_step,
-        schedule.ReduceGrads: _exec_reduce_grads,
-        schedule.ReduceTiedGrads: _exec_reduce_tied_grads,
-        schedule.LoadMicroBatch: _exec_load_micro_batch,
-        schedule.ForwardPass: _exec_forward_pass,
+        schedule.ReduceGrads: _exec_reduce_grads, # herewa
+        schedule.ReduceTiedGrads: _exec_reduce_tied_grads, # here
+        schedule.LoadMicroBatch: _exec_load_micro_batch, # 加载微批次数据
+        schedule.ForwardPass: _exec_forward_pass, # 前向传播
         schedule.BackwardPass: _exec_backward_pass,
         schedule.SendActivation: _exec_send_activations,
         schedule.RecvActivation: _exec_recv_activations,
@@ -1183,13 +1186,13 @@ class PipelineEngine(DeepSpeedEngine):
     }
 
     def _exec_schedule(self, pipe_schedule):
-        self._reserve_pipe_buffers(pipe_schedule.num_pipe_buffers())
+        self._reserve_pipe_buffers(pipe_schedule.num_pipe_buffers()) # 预留管道缓冲
         # For each step in the schedule
         #if dist.get_rank() == 0:
         #    print(f"using schedule: {pipe_schedule}")
         for step_cmds in pipe_schedule:
             if dist.get_rank() == 0:
-                print(f"rank 0 ---- schedule: {step_cmds}")
+                print(f"rank 0 ---- schedule: {step_cmds}") #  L1350 rank 0 ---- schedule: [BackwardPass(buffer_id=0)]
         for step_cmds in pipe_schedule:
             #if dist.get_rank() == 0:
             #    print(f"rank 0 ---- schedule: {step_cmds}")

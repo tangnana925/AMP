@@ -56,7 +56,8 @@ def get_host():
     return ret
 
 def remove_remote(hostname, path):
-    shell = spur.SshShell(hostname=hostname, username="ubuntu", private_key_file="/home/ubuntu/.ssh/id_rsa")
+    shell = spur.SshShell(hostname=hostname, username="root", port=5050, private_key_file="/workspace/.ssh/id_rsa")
+    print("@@@@path:,",path,"hostname:",hostname)
     result = shell.run(["rm", "-rf", path])
 
 #def simulate(candidate_list, gbs, model_config, exp_name):
@@ -72,6 +73,7 @@ def simulate(rank_maps, partitions, gbs, micro_bs_list, model_config, oth_list, 
     config_n = int(n)
 
     hosts = get_host()[1:]
+    print("!!!!!hosts:", hosts)
     for i in range(len(rank_maps)):
         rank_map = rank_maps[i]
         print(f"debug rank_map {rank_map}")
@@ -91,33 +93,42 @@ def simulate(rank_maps, partitions, gbs, micro_bs_list, model_config, oth_list, 
         if os.path.exists(rmap_path):
             os.remove(rmap_path)
         
-        # We want to do it ourself
-        if rank_map is not None:
-            with open(rmap_path, 'w') as outfile:
-                json.dump(rank_map, outfile)
+        # We want to do it ourself暂时屏蔽
+        # if rank_map is not None:
+        #     with open(rmap_path, 'w') as outfile:
+        #         json.dump(rank_map, outfile)
         
-            for oth_host in hosts:
-                print(f"Transferring rmap to {oth_host} all other hosts:{hosts}")
-                subprocess.run(f"scp {rmap_path} ubuntu@{oth_host}:{rmap_path}", shell=True)
-        else:
-            for oth_host in hosts:
-                remove_remote(oth_host, rmap_path)
+        #     for oth_host in hosts:
+        #         print(f"Transferring rmap to {oth_host} all other hosts:{hosts}")
+        #         subprocess.run(f"scp {rmap_path} ubuntu@{oth_host}:{rmap_path}", shell=True)
+        # else:
+        #     for oth_host in hosts:
+        #         print("@@@@oth_host", oth_host)
+        #         print(f" {mp} {pp} {config_n} {config_h} {micro_bs} {gas} {exp_name}")
+        #         remove_remote(oth_host, rmap_path) # here
+
+
         partition_path = os.path.join(dir_path, f"partition.json")
+        print("!!!!!partition_path:", partition_path, "partition:", partition)
         if os.path.exists(partition_path):
             os.remove(partition_path)
         if partition is not None:
             with open(partition_path, 'w') as outfile:
                 json.dump(partition, outfile)
             for oth_host in hosts:
-                subprocess.run(f"scp {partition_path} ubuntu@{oth_host}:{partition_path}", shell=True)
+                subprocess.run(f"scp {partition_path} root@{oth_host}:{partition_path}", shell=True)
         else:
             for oth_host in hosts:
-                remove_remote(oth_host, partition_path)
+                remove_remote(oth_host, partition_path) # here
 
         json_path = os.path.join(home_path, 'AMP/DeepSpeed/DeepSpeedExamples/Megatron-LM-v1.1.5-3D_parallelism/examples/ds_config.json')
 
+        # 修改：添加gpt3
         if model_type == "gpt2":
             script_path = os.path.join(home_path,"AMP/DeepSpeed/DeepSpeedExamples/Megatron-LM-v1.1.5-3D_parallelism/examples/ds_pretrain_gpt2_pipe.sh")
+            conf = f" {mp} {pp} {config_n} {config_h} {micro_bs} {gas} {exp_name}"
+        elif model_type == "gpt3":
+            script_path = os.path.join(home_path,"AMP/DeepSpeed/DeepSpeedExamples/Megatron-LM-v1.1.5-3D_parallelism/examples/ds_pretrain_gpt3_pipe.sh")
             conf = f" {mp} {pp} {config_n} {config_h} {micro_bs} {gas} {exp_name}"
         else:
             assert model_type == "transgan"
@@ -145,7 +156,7 @@ def simulate(rank_maps, partitions, gbs, micro_bs_list, model_config, oth_list, 
         cmd = "bash " + script_path + conf
         print(cmd)
         for oth_host in hosts:
-            subprocess.run(f"scp {json_path} ubuntu@{oth_host}:{json_path}", shell=True)
+            subprocess.run(f"scp {json_path} root@{oth_host}:{json_path}", shell=True)
         subprocess.run(cmd, shell=True)
         
         with open(record_path, "r") as f:

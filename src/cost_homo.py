@@ -28,7 +28,9 @@ class AMP(nn.Module):
         #self.estimate = estimate
         self.model_type = model_config["type"]
         self.placement = placement
-        assert self.model_type == "gpt2" 
+        # assert self.model_type == "gpt2" 
+        # 修改：增加gpt3
+        assert self.model_type in ["gpt2", "gpt3"]
         self.init_param()
         
     def init_param(self):
@@ -228,6 +230,7 @@ def dp_cost(config, cluster_info,model_config, parallel_config, amp_config, part
         for j in range(int(mp.item())):
             
             slowest = float("inf")
+            # 对于每个dp，找出当前节点和下一个节点之间的最慢连接性
             for k in range(int(dp.item())):
                 rank_cur = axis2rank(axis=(i,k,j), mp_deg=mp, dp_deg=dp, pp_deg=pp)
                 node_cur = rank_node_map[int(rank_cur.item())]
@@ -248,6 +251,7 @@ def dp_cost(config, cluster_info,model_config, parallel_config, amp_config, part
                 
             param_count = torch.zeros(1,)
             counted = False
+            # 计算参数数量
             for layer_id in range(ds_partition[i], ds_partition[i+1]):
                 layer_type = _layer[layer_id]
                 if layer_type == "embed2h" or layer_type == "embed2v":
@@ -262,7 +266,7 @@ def dp_cost(config, cluster_info,model_config, parallel_config, amp_config, part
                 else:
                     raise RuntimeError("Unknown layer type.")
                         
-            #print(f"dp: {dp_const} and param {param_count}")
+            # print(f"dp: {dp_const} and param {param_count}")
             cur_dp = dp_const * param_count
             if cur_dp > max_dp:
                 max_dp = cur_dp

@@ -73,6 +73,7 @@ def main():
             logger.info("%s %s %s", args.node_rank, k, current_env[k])
 
     world_info = None
+    print("@###############$world_info:", args.world_info)
     assert args.world_info != "None", "must provide world info dict"
     world_info = base64.urlsafe_b64decode(args.world_info)
     world_info = json.loads(world_info)

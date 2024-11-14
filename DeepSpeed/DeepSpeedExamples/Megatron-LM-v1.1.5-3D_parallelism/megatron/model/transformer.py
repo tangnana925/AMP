@@ -220,7 +220,7 @@ class ParallelSelfAttention(MegatronModule):
         # =====================
 
         # Attention heads [sq, b, h] --> [sq, b, (np * 3 * hn)]
-        print(f"{hidden_states.shape}")
+        # print(f"{hidden_states.shape}")  #  here???
         mixed_x_layer, _ = self.query_key_value(hidden_states)
 
         checkpoint_version = get_checkpoint_version()
@@ -506,8 +506,8 @@ class ParallelTransformerLayerPipe(ParallelTransformerLayer):
     """Extends ParallelTransformerLayer to forward attention_mask through the pipeline. """
     def forward(self, args):
         hidden_states, attention_mask = args[0], args[1]
-        print((super().forward(*args)).shape)
-        print(attention_mask.shape)
+        # print("ParallelTransformerLayerPipe forward:",(super().forward(*args)).shape)
+        # print("ParallelTransformerLayerPipe:", attention_mask.shape)
         #print("-----------------")
         #print(attention_mask)
         return super().forward(*args), attention_mask

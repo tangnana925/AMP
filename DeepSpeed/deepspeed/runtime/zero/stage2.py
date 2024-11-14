@@ -465,9 +465,10 @@ class FP16_DeepSpeedZeroOptimizer(object):
                         param_group,
                         partition_id)
 
+    # 处理完梯度分区后的一些操作
     def independent_gradient_partition_epilogue(self):
         self.report_ipg_memory_usage(f"In ipg_epilogue before reduce_ipg_grads", 0)
-        self.reduce_ipg_grads()
+        self.reduce_ipg_grads() # 对梯度进行allreduce
         self.report_ipg_memory_usage(f"In ipg_epilogue after reduce_ipg_grads", 0)
 
         #if dist.get_rank() == 0:
@@ -475,12 +476,12 @@ class FP16_DeepSpeedZeroOptimizer(object):
         for i in range(len(self.params_already_reduced)):
             self.params_already_reduced[i] = False
 
-        if self.overlap_comm:
+        if self.overlap_comm: # 启用通信重叠
             torch.cuda.synchronize()
             # It is safe to clear previously reduced grads of other partitions
             self._clear_previous_reduced_grads()
 
-        if self.cpu_offload is False:
+        if self.cpu_offload is False: # 计算重叠
             for i, _ in enumerate(self.fp16_groups):
 
                 if not i in self.averaged_gradients or self.averaged_gradients[i] is None:
@@ -490,19 +491,19 @@ class FP16_DeepSpeedZeroOptimizer(object):
                         self.partition_size[i],
                         dtype=torch.half,
                         device=torch.cuda.current_device(),
-                        return_tensor_list=True)
+                        return_tensor_list=True) # 计算平均梯度，保存在averaged_gradients
                 else:
                     avg_new = self.get_flat_partition(self.params_in_partition[i],
                                                       self.first_offset[i],
                                                       self.partition_size[i],
                                                       dtype=torch.half,
                                                       device=torch.cuda.current_device(),
-                                                      return_tensor_list=True)
+                                                      return_tensor_list=True) # 计算这个参数组的新的平均梯度，将其添加到已经计算过的平均梯度中
 
                     for accumulated_grad, new_avg_grad in zip(self.averaged_gradients[i],avg_new):
                         accumulated_grad.add_(new_avg_grad)
 
-        self._release_ipg_buffers()
+        self._release_ipg_buffers() # 释放IPG缓冲区
 
         # No need to keep the gradients anymore.
         # All gradients required by the step

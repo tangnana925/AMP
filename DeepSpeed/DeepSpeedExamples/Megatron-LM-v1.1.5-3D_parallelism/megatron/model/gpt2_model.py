@@ -230,3 +230,5 @@ class GPT2ModelPipe(PipelineModule,MegatronModule):
                          topology=topology,
                          activation_checkpoint_interval=interval,
                          partition_method='type:transformer')
+
+# 新增GPT3Model

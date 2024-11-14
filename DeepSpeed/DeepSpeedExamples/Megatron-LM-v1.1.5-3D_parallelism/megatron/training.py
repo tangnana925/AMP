@@ -88,7 +88,7 @@ def pretrain(train_valid_test_dataset_provider, model_provider,
     timers('train/valid/test data iterators').start()
     train_data_iterator, valid_data_iterator, test_data_iterator \
         = build_train_valid_test_data_iterators(
-            train_valid_test_dataset_provider)
+            train_valid_test_dataset_provider) # here 数据迭代器
     timers('train/valid/test data iterators').stop()
 
     # Print setup timing.
@@ -602,6 +602,7 @@ def train_step(forward_step_func, data_iterator,
     timers = get_timers()
 
     # Pipeline parallelism schedules forward/backward/step
+    # here!!!!!! _exec_schedule
     if args.pipe_parallel_size > 0:
         return train_step_pipe(model, data_iterator)
 
@@ -637,7 +638,7 @@ def train_step_pipe(model, data_iterator):
     timers = get_timers()
 
     assert args.deepspeed
-    loss = model.train_batch(data_iter=data_iterator)
+    loss = model.train_batch(data_iter=data_iterator) ##  L1339 _exec_schedule
     loss_dict = {'lm loss': loss}
     if args.fp16 and model.optimizer.overflow:
         skipped_iter = 1
@@ -741,6 +742,7 @@ def training_log(loss_dict, total_loss_dict, learning_rate, iteration,
     return report_memory_flag
 
 
+#  这里哇
 def train(forward_step_func, model, optimizer, lr_scheduler,
           train_data_iterator, valid_data_iterator):
     """Train the model function."""
@@ -761,7 +763,7 @@ def train(forward_step_func, model, optimizer, lr_scheduler,
     time_amp = 0
     os.environ["mp_count_param"] = str(0)
     while iteration < 41:# args.train_iters:
-        #print(iteration)
+        # print("!!!train iteration: ",iteration, "rank:", torch.distributed.get_rank())
         os.environ["amp_iter"] = str(iteration)
         if iteration == 20:
             time_amp = time.time()
@@ -790,9 +792,10 @@ def train(forward_step_func, model, optimizer, lr_scheduler,
                                              train_data_iterator,
                                              model,
                                              optimizer,
-                                             lr_scheduler)
+                                             lr_scheduler) # 这里哇 _exec_shedule
+        
         param_ = os.environ["mp_count_param"]
-        print(f"single forward has mp param {param_}")
+        print(f"single forward has mp param {param_}", "rank:",torch.distributed.get_rank()) # L1834
         os.environ["mp_count_param"] = str(0)
         iteration += 1
 
@@ -808,17 +811,20 @@ def train(forward_step_func, model, optimizer, lr_scheduler,
                                           report_memory_flag, skipped_iter)
 
         # Autoresume
+        # print("#####################2222222222222,self.rank",torch.distributed.get_rank())
         if args.adlr_autoresume and \
            (iteration % args.adlr_autoresume_interval == 0):
             check_adlr_autoresume_termination(iteration, model, optimizer,
                                               lr_scheduler)
 
         # Checkpointing
+        # print("#####################333333333333")
         if args.save and args.save_interval and \
            iteration % args.save_interval == 0:
             save_checkpoint(iteration, model, optimizer, lr_scheduler)
 
         # Evaluation
+        # print("####################44444444442")
         if args.eval_interval and iteration % args.eval_interval == 0 and \
            args.do_valid:
             prefix = 'iteration {}'.format(iteration)
@@ -826,6 +832,7 @@ def train(forward_step_func, model, optimizer, lr_scheduler,
                                        valid_data_iterator, model,
                                        iteration, False)
 
+        # print("#####################2455555555555522")
         if args.exit_interval and iteration % args.exit_interval == 0:
             torch.distributed.barrier()
             time_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -833,7 +840,8 @@ def train(forward_step_func, model, optimizer, lr_scheduler,
             print_rank_0('rank: {} | time: {} | exiting the program at '
                          'iteration {}'.format(rank, time_str, iteration))
             sys.exit()
-
+        
+        # print("iteration end  : ",iteration, "rank:", torch.distributed.get_rank())
     return iteration
 
 
@@ -1246,7 +1254,7 @@ def build_train_valid_test_data_iterators(
 
     # Build iterators.
     if train_dataloader is not None:
-        train_data_iterator = iter(train_dataloader)
+        train_data_iterator = iter(train_dataloader) # 有迭代
     else:
         train_data_iterator = None
 

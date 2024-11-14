@@ -34,7 +34,7 @@ args = parser.parse_args()
 time_s = time.time()
 # number of GPU per node, number of nodes
 M = 4
-N = 4
+N = 2
 
 home_path = os.environ['HOME']
 dir_path = os.path.join(home_path, 'amp_main_logs')
@@ -47,11 +47,18 @@ cluster_info = {}
 for i in range(N):
     cluster_info[i] = [torch.tensor([50 * 1e9 / 32]).float(), torch.tensor([50 * 1e9 / 32]).float()]
 
+# 修改
 model_config = {"hidden_size": torch.tensor([1024]).float(), 
                 "sequence_length": torch.tensor([1024]).float(), 
                 "num_layers": torch.tensor([24]).float(), 
                 "vocab_size":torch.tensor([52256]).float(),
                 "type":"gpt2"}
+
+# model_config = {"hidden_size": torch.tensor([4096]).float(), #
+#                 "sequence_length": torch.tensor([4096]).float(), 
+#                 "num_layers": torch.tensor([30]).float(), #
+#                 "vocab_size":torch.tensor([131072]).float(),
+#                 "type":"gpt3"}
 
 config_h = int((model_config["hidden_size"]).item())
 config_n = int(model_config["num_layers"].item())
@@ -71,7 +78,7 @@ if os.path.exists(os.path.join(home_path, "tmp")):
 # save this name to env
 os.environ["amp_log_path"] = record_file
 
-global_bs = 32
+global_bs = 16 # 32
 model = AMP(model_config, exp_name)
 assert (global_bs % M == 0) and (global_bs % N == 0), "global batch size is too irrgular"
 
@@ -105,6 +112,8 @@ while True:
 time_e = time.time()
 print(f"AMP finishes without placement in {iter_count} iterations in {time_e - time_s}")
 
+# print("record_file:", record_file)
+# assert False, "stop here"
 sorted_settings = sorted(want_simulate, key = lambda kv: kv[1])
 with open(record_file, "a") as fp:
     for item in sorted_settings:

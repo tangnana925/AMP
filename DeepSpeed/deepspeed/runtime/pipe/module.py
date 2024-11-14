@@ -394,6 +394,7 @@ class PipelineModule(nn.Module):
     def _partition_layers(self, method='uniform'):
         num_stages = self._topo.get_dim('pipe')
         stage_id = self._topo.get_coord(self.global_rank).pipe
+        print("@@@@@@@@@stage_id", stage_id)
 
         if self.global_rank == 0:
             logger.info(f'Partitioning pipeline stages with method {method}')

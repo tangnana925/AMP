@@ -108,7 +108,7 @@ def get_model(model_type):
 
     if model_type == 'BERT':
         from pretrain_bert import model_provider
-    elif model_type == 'GPT2':
+    elif model_type == 'GPT2' or model_type == 'GPT3':
         from pretrain_gpt2 import model_provider
     elif model_type == 'RACE':
         from tasks.race.finetune import model_provider

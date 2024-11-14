@@ -254,6 +254,7 @@ def encode_world_info(world_info):
 def main(args=None):
     args = parse_args(args)
 
+    print("@@@@@@@@@@@@@@@@@@@@@@@@@@@")
     if args.num_nodes >= 0 or args.num_gpus >= 0:
         if args.include != "" or args.exclude != "":
             raise ValueError("Cannot specify num_nodes/gpus with include/exclude")

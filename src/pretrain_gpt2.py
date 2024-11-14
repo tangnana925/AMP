@@ -45,6 +45,7 @@ def model_provider():
         # This is a hack to give us a reference to get_batch_pipe from within training.py
         # We need to call model.set_batch_fn after deepspeed.initialize
         model._megatron_batch_fn = get_batch_pipe
+        print("^^^^^##^model:", model)
 
     return model
 
@@ -125,6 +126,7 @@ def forward_step(data_iterator, model):
         data_iterator)
     timers('batch generator').stop()
     # Forward model.
+    print("2#####model:",model)
     losses = model(tokens, position_ids, attention_mask, labels=labels)
     loss_mask = loss_mask.view(-1)
     loss = torch.sum(losses.view(-1) * loss_mask) / loss_mask.sum()

@@ -341,7 +341,7 @@ def amp_no_placement_strategy(M, N, gbs, known):
                 for mbs in factor(gbs // w):
                     ele_count += 1
                     known[mbs].append((h, w))
-        print(f"total possible amp candidates without placment: {ele_count}")
+        print(f"total possible amp candidates without placment: {ele_count}") # 候选项
     if len(known.keys()) == 0:
         return None
 
@@ -350,7 +350,7 @@ def amp_no_placement_strategy(M, N, gbs, known):
     (h, w) = known[mbs].pop(0)
     if len(known[mbs]) == 0:
        known.pop(mbs, None)
-
+    print("!!!!!!amp_no_placement_strategy:mp=", h,"dp=", w, "mbs=",mbs)
     return h, w, mbs, known
 
 def random_strategy(M, N, gbs, known, domino=True):

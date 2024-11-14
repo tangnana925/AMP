@@ -5,12 +5,16 @@ GPUS_PER_NODE=1
 MASTER_ADDR=localhost
 MASTER_PORT=6009
 
-#DATA_PATH=gpt_data/my-gpt2_text_document
-DATA_PATH=/home/ubuntu/datasets/datasets/preprocessed_data/my-gpt2_text_document
-VOCAB_PATH=gpt_data/gpt2-vocab.json
-MERGE_PATH=gpt_data/gpt2-merges.txt
-CHECKPOINT_PATH=/home/ubuntu/DeepSpeed/DeepSpeedExamples/Megatron-LM-v1.1.5-3D_parallelism/examples/ckpts/gpt2_1542m_ds_distributed
+echo $HOME
+#DATA_PATH=gpt_data/my-gpt2_text_document \\10.15.35.70\1\self-define\tangnana\data\gpt\my-gpt2_text_document
+# /mnt/self-define/tangnana/data/gpt/my_gpt2_text_document
+# /root/data/data/gpt/my-gpt2_text_document
+DATA_PATH=/root/data/data/gpt/my-gpt2_text_document
+VOCAB_PATH=$HOME/AMP/DeepSpeed/DeepSpeedExamples/Megatron-LM-v1.1.5-3D_parallelism/gpt_data/gpt2-vocab.json
+MERGE_PATH=$HOME/AMP/DeepSpeed/DeepSpeedExamples/Megatron-LM-v1.1.5-3D_parallelism/gpt_data/gpt2-merges.txt
+# CHECKPOINT_PATH=/home/ubuntu/DeepSpeed/DeepSpeedExamples/Megatron-LM-v1.1.5-3D_parallelism/examples/ckpts/gpt2_1542m_ds_distributed
 
+CHECKPOINT_PATH=$HOME/gpt/ckpts/gpt2_1542m_ds_distributed
 script_path=$(realpath $0)
 script_dir=$(dirname $script_path)
 #config_json="$script_dir/ds_zero_stage_2_config.json"
@@ -36,7 +40,7 @@ gpt_options=" \
         --exp_name ${exp_name} \
         --num-layers ${NLAYERS} \
         --hidden-size ${NHIDDEN} \
-        --num-attention-heads 16 \
+        --num-attention-heads 16  \
         --seq-length 1024 \
         --max-position-embeddings 1024 \
         --batch-size $BATCHSIZE \
@@ -77,7 +81,7 @@ fi
 full_options="${gpt_options} ${deepspeed_options} ${chkp_opt}"
 
 # %@
-run_cmd="deepspeed --hostfile=/home/ubuntu/hostfile --master_port 9005 pretrain_gpt2.py ${full_options}"
+run_cmd="deepspeed --hostfile=$HOME/hostfile --master_port $MASTER_PORT $HOME/AMP/DeepSpeed/DeepSpeedExamples/Megatron-LM-v1.1.5-3D_parallelism/pretrain_gpt2.py ${full_options}"
 echo ${run_cmd}
 eval ${run_cmd}
 

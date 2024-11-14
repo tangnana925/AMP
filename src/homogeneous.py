@@ -34,7 +34,7 @@ args = parser.parse_args()
 time_s = time.time()
 # number of GPU per node, number of nodes
 M = 4
-N = 4
+N = 1
 
 home_path = os.environ['HOME']
 dir_path = os.path.join(home_path, 'amp_main_logs')
@@ -47,11 +47,17 @@ cluster_info = {}
 for i in range(N):
     cluster_info[i] = [torch.tensor([50 * 1e9 / 32]).float(), torch.tensor([50 * 1e9 / 32]).float()]
 
-model_config = {"hidden_size": torch.tensor([1024]).float(), 
-                "sequence_length": torch.tensor([1024]).float(), 
-                "num_layers": torch.tensor([24]).float(), 
-                "vocab_size":torch.tensor([52256]).float(),
-                "type":"gpt2"}
+# model_config = {"hidden_size": torch.tensor([1024]).float(), 
+#                 "sequence_length": torch.tensor([1024]).float(), 
+#                 "num_layers": torch.tensor([24]).float(), 
+#                 "vocab_size":torch.tensor([52256]).float(),
+#                 "type":"gpt2"}
+
+model_config = {"hidden_size": torch.tensor([4096]).float(), #
+                "sequence_length": torch.tensor([4096]).float(), 
+                "num_layers": torch.tensor([30]).float(), #
+                "vocab_size":torch.tensor([131072]).float(),
+                "type":"gpt3"}
 
 config_h = int((model_config["hidden_size"]).item())
 config_n = int(model_config["num_layers"].item())
@@ -124,6 +130,7 @@ if args.full:
         mbs = can[0]
         oth = can[1]
         partition = can[3]
+        # 模拟
         gt_cost = simulate([rmap], [partition], torch.ones(1,)*global_bs, to_float_torch([mbs]), model_config, [oth], exp_name)
         gt_cost = gt_cost[0]
         with open(record_file, "a") as fp:

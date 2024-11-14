@@ -27,7 +27,8 @@ class AMP(nn.Module):
         self.model_config = model_config
         self.exp_name = "init_" + exp_name 
         self.model_type = model_config["type"]
-        assert self.model_type == "gpt2" 
+        # assert self.model_type == "gpt2" 
+        assert self.model_type in ["gpt2", "gpt3"]
         self.init_param()
         
     def init_param(self):

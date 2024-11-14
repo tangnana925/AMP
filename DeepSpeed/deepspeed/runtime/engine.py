@@ -183,8 +183,8 @@ class DeepSpeedEngine(Module):
         self.optimizer = None
         self.lr_scheduler = None
         if model_parameters or optimizer:
-            self._configure_optimizer(optimizer, model_parameters)
-            self._configure_lr_scheduler(lr_scheduler)
+            self._configure_optimizer(optimizer, model_parameters) # L747
+            self._configure_lr_scheduler(lr_scheduler)  # L757
             self._report_progress(0)
 
         # Bookkeeping for csr support
@@ -205,7 +205,7 @@ class DeepSpeedEngine(Module):
             self.progressive_layer_drop = self._configure_progressive_layer_drop()
 
         if self.global_rank == 0:
-            self._config.print('DeepSpeedEngine configuration')
+            self._config.print('DeepSpeedEngine configuration') # L760
             if self.dump_state():
                 print_configuration(self, 'DeepSpeedEngine')
 
@@ -1028,7 +1028,7 @@ class DeepSpeedEngine(Module):
             self.timers('backward_allreduce_microstep').start()
             self.timers('backward_allreduce').start()
 
-        print(f"did I enable? {self.enable_backward_allreduce}")
+        print(f"did I enable? {self.enable_backward_allreduce}", "self.global_rank", self.global_rank)
         if self.enable_backward_allreduce:
             self.allreduce_gradients()
 
@@ -1236,7 +1236,7 @@ class DeepSpeedEngine(Module):
         if self.allreduce_always_fp32():
             tensor_to_allreduce = tensor.float()
 
-        if self.postscale_gradients():
+        if self.postscale_gradients(): # 缩放梯度
             if self.gradient_predivide_factor() != 1.0:
                 tensor_to_allreduce.mul_(1. / self.gradient_predivide_factor())
 
@@ -1260,6 +1260,7 @@ class DeepSpeedEngine(Module):
         for buf, synced in zip(small_bucket, self.unflatten(allreduced, small_bucket)):
             buf.copy_(synced)
 
+    # 输入张量分割为多个small_bucket
     def allreduce_no_retain(self, bucket, numel_per_bucket=500000000):
         small_bucket = []
         numel = 0
@@ -1303,7 +1304,7 @@ class DeepSpeedEngine(Module):
                 self.csr_allreduce_no_retain(bucket)
             else:
                 self.allreduce_no_retain(bucket, numel_per_bucket=elements_per_buffer)
-        print(f"dp allreduce with size {self.allreduce_param_count}")
+        print(f"dp allreduce with size {self.allreduce_param_count}", "self.global_rank", self.global_rank)
         self.allreduce_param_count = 0
 
     def csr_allreduce_no_retain(self, bucket):
